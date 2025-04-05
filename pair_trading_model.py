@@ -70,8 +70,8 @@ class PairTradingModel:
         
         stock1_close = stock1['Close'].squeeze()
         stock2_close = stock2['Close'].squeeze()
-        print(type(stock1_close))
-        print(stock1_close.head())
+        # print(type(stock1_close))
+        # print(stock1_close.head())
 
 
         # Create a dataframe with adjusted close prices
@@ -80,8 +80,8 @@ class PairTradingModel:
             self.ticker2: stock2_close
         })
         
-        print("Final dataframe head:")
-        print(df)
+        # print("Final dataframe head:")
+        # print(df)
         
         # Remove any rows with NaN values
         self.data = df.dropna()

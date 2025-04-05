@@ -12,6 +12,16 @@ app = Flask(__name__, static_folder='static')
 # Store active models in memory
 active_models = {}
 
+def sanitize_for_json(obj):
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    elif isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+    return obj
+
 @app.route('/api/test_connection', methods=['GET'])
 def test_connection():
     """Simple endpoint to test if the API is running"""
@@ -139,6 +149,37 @@ def create_model():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/get_all_models', methods=['GET'])
+def get_all_models():
+    model_summaries = []
+
+    for model_id, model in active_models.items():
+        try:
+            summary = {
+                'model_id': model_id,
+                'tickers': {
+                    'ticker1': model.ticker1,
+                    'ticker2': model.ticker2
+                },
+                'metrics': {
+                    'total_return': model.metrics.get('total_return', 0),
+                    'annual_return': model.metrics.get('annual_return', 0),
+                    'sharpe_ratio': model.metrics.get('sharpe_ratio', 0),
+                    'max_drawdown': model.metrics.get('max_drawdown', 0),
+                },
+                'data_summary': {
+                    'start_date': model.data.index.min().strftime('%Y-%m-%d') if model.data is not None else None,
+                    'end_date': model.data.index.max().strftime('%Y-%m-%d') if model.data is not None else None,
+                }
+            }
+            model_summaries.append(summary)
+        except Exception as e:
+            print(f"Error summarizing model {model_id}: {e}")
+
+    return jsonify({
+        'status': 'success',
+        'models': model_summaries})
+
 @app.route('/api/get_model_data/<model_id>', methods=['GET'])
 def get_model_data(model_id):
     """Get detailed data for a specific model"""
@@ -188,9 +229,9 @@ def get_model_data(model_id):
         "ticker1": model.ticker1,
         "ticker2": model.ticker2,
         "price_data": price_data,
-        "spread_data": spread_data,
+        "spread_data": sanitize_for_json(spread_data),
         "signal_data": signal_data,
-        "performance_data": performance_data
+        "performance_data": sanitize_for_json(performance_data)
     })
 
 @app.route('/api/delete_model/<model_id>', methods=['DELETE'])
